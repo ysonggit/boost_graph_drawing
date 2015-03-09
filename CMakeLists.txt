@@ -1,0 +1,8 @@
+cmake_minimum_required(VERSION 2.8)
+project(boost_graph_drawing)
+find_package(Boost COMPONENTS system filesystem REQUIRED)
+include_directories(${Boost_INCLUDE_DIR})
+link_directories(${Boost_LIBRARY_DIR})
+set(CMAKE_CXX_FLAGS "-std=c++0x ${CMAKE_CXX_FLAGS}")
+add_executable(boost_graph_drawing boost_graph_drawing.cpp)
+target_link_libraries(boost_graph_drawing ${Boost_LIBRARIES} )
