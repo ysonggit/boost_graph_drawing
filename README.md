@@ -18,6 +18,8 @@ Draw Boost Graph
 
 CommunicationGraph Example: A node label represents a robot ID, an edge label represents the distance between two neighbors.
 ![](http://i.imgur.com/KYkO2h1.png)
+
+
 Spanning Tree Example: A node label represents a robot ID, the directed edge is from a parent robot to its descendant.
 ![](http://i.imgur.com/eM05HmX.png)
 

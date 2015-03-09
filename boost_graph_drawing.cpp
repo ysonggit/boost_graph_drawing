@@ -1,3 +1,9 @@
+/*
+ * Author: Yang Song
+ * Email: ysong.sc@gmail.com
+ * Date: March 9, 2014
+ */
+
 #include <set>
 #include <map>
 #include <queue>
