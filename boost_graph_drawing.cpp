@@ -1,3 +1,5 @@
+#include <set>
+#include <map>
 #include <queue>
 #include <vector>
 #include <iostream>
@@ -50,6 +52,7 @@ typedef graph_traits<CommunicationGraph>::vertex_iterator vertex_iter;
 typedef graph_traits<CommunicationGraph>::edge_iterator edge_iter;
 typedef graph_traits<CommunicationGraph>::vertex_descriptor vertex_t;
 typedef graph_traits<CommunicationGraph>::edge_descriptor edge_t;
+typedef typename graph_traits<CommunicationGraph>::directed_category comm_graph_cat_t;
 
 void constructCommunicationGraph(CommunicationGraph & g, vector<Robot> & robots, int radius){
     int n = robots.size();
@@ -80,23 +83,34 @@ void constructCommunicationGraph(CommunicationGraph & g, vector<Robot> & robots,
         }
     }
 }
-
-void printEdges(const CommunicationGraph & g){
+// print edges for directed graph
+template<typename GRAPHTYPE>
+void printEdges(const GRAPHTYPE & g, boost::directed_tag){
     auto es = boost::edges(g); // actually a pair of edge_iterators
     for (auto eit = es.first; eit != es.second; ++eit) {
-        vertex_t u = boost::source(*eit, g);
-        vertex_t w =boost::target(*eit, g);
-        std::cout <<g[u].id << " <--->  " <<g[w].id << std::endl;
+        auto u = boost::source(*eit, g);
+        auto w =boost::target(*eit, g);
+        std::cout <<g[u].id << " --->  " <<g[w].id << std::endl;
     }
- }
+}
 
-void writeDotFile(const CommunicationGraph & g, string filename){
+// print edges for undirected graph
+template<typename GRAPHTYPE>
+void printEdges(const GRAPHTYPE & g, boost::undirected_tag){
+    auto es = boost::edges(g); // actually a pair of edge_iterators
+    for (auto eit = es.first; eit != es.second; ++eit) {
+        auto u = boost::source(*eit, g);
+        auto w =boost::target(*eit, g);
+        std::cout <<g[u].id << " ---  " <<g[w].id << std::endl;
+    }
+}
+
+void writeGraphDotFile(const CommunicationGraph & g, string filename){
     //  dot -Tpng graph.dot > graph.png
     ofstream dotfile(filename.c_str());
     write_graphviz(dotfile, g,
         boost::make_label_writer(boost::get(&Robot::id, g)),
         boost::make_label_writer(boost::get(&Distance::d, g)));
-    
 }
 
 struct SpanningTreeNode{
@@ -109,6 +123,15 @@ typedef adjacency_list<vecS, vecS, directedS, SpanningTreeNode> SpanningTree;
 typedef graph_traits<SpanningTree>::vertex_iterator tree_vertex_iter;
 typedef graph_traits<SpanningTree>::edge_iterator tree_edge_iter;
 typedef graph_traits<SpanningTree>::vertex_descriptor tree_vertex_t;
+typedef graph_traits<SpanningTree>::edge_descriptor tree_edge_t;
+typedef typename graph_traits<SpanningTree>::directed_category spanning_tree_cat_t;
+
+void graphVertexToTreeNode(const CommunicationGraph& g, const vertex_t & gv,
+    SpanningTree & t, tree_vertex_t & tv, const tree_vertex_t& tv_parent){
+    t[tv].id= g[gv].id;
+    t[tv].steps_from_root = t[tv_parent].steps_from_root +1;
+    t[tv].parent_id = t[tv_parent].id;
+}
 
 // BFS
 void constructSpanningTree(const CommunicationGraph & g, SpanningTree & t){
@@ -124,23 +147,61 @@ void constructSpanningTree(const CommunicationGraph & g, SpanningTree & t){
             vertex_max_id = u;
         } 
     }
+    // insert root into the spanning tree
+    tree_vertex_t root = add_vertex(t);
+    t[root].id = max_id;
+    t[root].steps_from_root = 0;
+    t[root].parent_id = -1;
+    // BFS traversal graph
     graph_traits<CommunicationGraph>::out_edge_iterator ei, ei_end;
     queue<vertex_t> Q;
-    set<vertex_t> visited;
+    // key is the graph vertex
+    // value is the tree node made from corresponding graph vertex
+    map<vertex_t, tree_vertex_t> visited_nodes;
     Q.push(vertex_max_id);
-    visited.insert(vertex_max_id);
+    visited_nodes[vertex_max_id]=root;
     while(!Q.empty()){
         vertex_t v = Q.front();
         Q.pop();
+        tree_vertex_t parent_node = visited_nodes[v]; 
         for(boost::tie(ei, ei_end) = out_edges(v, g); ei != ei_end; ++ei){
             vertex_t w = boost::target(*ei, g);
-            if(visited.find(w)==visited.end()){
+            if(visited_nodes.find(w)==visited_nodes.end()){
                 Q.push(w);
-                visited.insert(w);
+                tree_vertex_t child_node = add_vertex(t);
+                graphVertexToTreeNode(g, w, t, child_node, parent_node);
+                visited_nodes[w] = child_node;
             }
         }
     }
+    // now connect tree nodes with directed edges: pointing from parents to children
+    // key is the robot id (not vertex_index), value is the tree_vertex descriptor
+    map<int, tree_vertex_t> tree_nodes; 
+    auto vi = vertices(t);
+    for(auto vit = vi.first; vit != vi.second; ++vit){
+        tree_vertex_t tv = *(vit);
+        int rid = t[tv].id;
+        tree_nodes[rid] = tv; 
+    }
+    for(auto vit= vi.first; vit!= vi.second; ++vit){
+        tree_vertex_t child_v = *(vit);
+        int pid = t[child_v].parent_id;
+        if(pid>0){
+            tree_vertex_t parent_v = tree_nodes[pid];
+            if(!boost::edge(parent_v, child_v, t).second){
+                tree_edge_t e;
+                bool b;
+                boost::tie(e, b) = add_edge(parent_v, child_v, t);
+            }
+        }
+    }
+}
 
+void writeTreeDotFile(const SpanningTree & t, string filename){
+    //  dot -Tpng graph.dot > graph.png
+    ofstream dotfile(filename.c_str());
+    write_graphviz(dotfile, t,
+        boost::make_label_writer(boost::get(&SpanningTreeNode::id, t)));
 }
 
 int main(int argc, char *argv[]){
@@ -152,8 +213,13 @@ int main(int argc, char *argv[]){
     int radius = 10;
     CommunicationGraph g;
     constructCommunicationGraph(g, robots, radius);
-    printEdges(g);
-    string dot_file = "graph.dot";
-    writeDotFile(g, dot_file);
+    printEdges(g, comm_graph_cat_t());
+    string graph_dot_file = "graph.dot";
+    writeGraphDotFile(g, graph_dot_file);
+    SpanningTree t;
+    constructSpanningTree(g, t);
+    printEdges(t, spanning_tree_cat_t());
+    string tree_dot_file = "sptree.dot";
+    writeTreeDotFile(t, tree_dot_file);
     return 0;
 }
