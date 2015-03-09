@@ -154,14 +154,19 @@ void constructSpanningTree(const CommunicationGraph & g, SpanningTree & t){
     t[root].parent_id = -1;
     // BFS traversal graph
     graph_traits<CommunicationGraph>::out_edge_iterator ei, ei_end;
-    queue<vertex_t> Q;
+    //queue<vertex_t> Q;
+    // define comparison function for priority queue
+    auto comp = [&g](const vertex_t & a, const vertex_t & b) -> bool {
+        return g[a].id < g[b].id;
+    };
+    priority_queue<vertex_t, vector<vertex_t>, decltype(comp) > Q(comp);
     // key is the graph vertex
     // value is the tree node made from corresponding graph vertex
     map<vertex_t, tree_vertex_t> visited_nodes;
     Q.push(vertex_max_id);
     visited_nodes[vertex_max_id]=root;
     while(!Q.empty()){
-        vertex_t v = Q.front();
+        vertex_t v = Q.top();
         Q.pop();
         tree_vertex_t parent_node = visited_nodes[v]; 
         for(boost::tie(ei, ei_end) = out_edges(v, g); ei != ei_end; ++ei){
@@ -205,11 +210,13 @@ void writeTreeDotFile(const SpanningTree & t, string filename){
 }
 
 int main(int argc, char *argv[]){
-    vector<Robot> robots{ Robot(2, 5, 6),
-            Robot(1, 0, 1),
-            Robot(4, 10, 8),
-            Robot(3, 4, -4),
-            Robot(5, -3, -4)};
+    vector<Robot> robots{ Robot(2, 0, 0),
+            Robot(8, 0, 8),
+            Robot(1, 6, 9),
+            Robot(5, 2, 14),
+            Robot(9, 10, 8),
+            Robot(7, 8, 16),
+            Robot(10, 5, 22)};
     int radius = 10;
     CommunicationGraph g;
     constructCommunicationGraph(g, robots, radius);
