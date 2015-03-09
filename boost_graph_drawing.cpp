@@ -14,6 +14,7 @@
 #include <boost/graph/directed_graph.hpp> 
 #include <boost/graph/undirected_graph.hpp>
 #include <boost/graph/graphviz.hpp>
+#include <boost/graph/graph_traits.hpp>
 
 using namespace boost;
 using namespace std;
@@ -49,7 +50,7 @@ typedef graph_traits<CommunicationGraph>::vertex_iterator vertex_iter;
 typedef graph_traits<CommunicationGraph>::edge_iterator edge_iter;
 typedef graph_traits<CommunicationGraph>::vertex_descriptor vertex_t;
 typedef graph_traits<CommunicationGraph>::edge_descriptor edge_t;
-typedef graph_traits<CommunicationGraph>::out_edge_iterator ei, ei_end;
+
 void constructCommunicationGraph(CommunicationGraph & g, vector<Robot> & robots, int radius){
     int n = robots.size();
     for_each(robots.begin(), robots.end(), [&g](Robot &r){
@@ -101,21 +102,16 @@ void writeDotFile(const CommunicationGraph & g, string filename){
 struct SpanningTreeNode{
     int id;
     int steps_from_root;
-    SpanningTreeNode * parent;
-    SpanningTreeNode() {
-        id = -1;
-        steps_from_root = -1;
-        parent = NULL;
-    }
-    SpanningTreeNode(int _i, int _s, SpanningTreeNode * p){
-        id = _i;
-        steps_from_root = _s;
-        parent = p;
-    }
+    int parent_id;
 };
 
+typedef adjacency_list<vecS, vecS, directedS, SpanningTreeNode> SpanningTree;
+typedef graph_traits<SpanningTree>::vertex_iterator tree_vertex_iter;
+typedef graph_traits<SpanningTree>::edge_iterator tree_edge_iter;
+typedef graph_traits<SpanningTree>::vertex_descriptor tree_vertex_t;
+
 // BFS
-void constructSpanningTree(const CommunicationGraph & g, SpanningTreeNode *& root){
+void constructSpanningTree(const CommunicationGraph & g, SpanningTree & t){
     if(num_vertices(g)==0) return;
     // first get the root
     auto vs = boost::vertices(g);
@@ -128,7 +124,7 @@ void constructSpanningTree(const CommunicationGraph & g, SpanningTreeNode *& roo
             vertex_max_id = u;
         } 
     }
-    root = new SpanningTreeNode(max_id, 0, nullptr);
+    graph_traits<CommunicationGraph>::out_edge_iterator ei, ei_end;
     queue<vertex_t> Q;
     set<vertex_t> visited;
     Q.push(vertex_max_id);
