@@ -48,23 +48,14 @@ typedef graph_traits<CommunicationGraph>::edge_iterator edge_iter;
 typedef graph_traits<CommunicationGraph>::vertex_descriptor vertex_t;
 typedef graph_traits<CommunicationGraph>::edge_descriptor edge_t;
 
-int main(int argc, char *argv[]){
-    vector<Robot> robots{ Robot(2, 5, 6),
-            Robot(1, 0, 1),
-            Robot(4, 10, 8),
-            Robot(3, 4, -4),
-            Robot(5, -3, -4)};
-    int radius = 10;
+void constructCommunicationGraph(CommunicationGraph & g, vector<Robot> & robots, int radius){
     int n = robots.size();
-    CommunicationGraph g;
     for_each(robots.begin(), robots.end(), [&g](Robot &r){
             vertex_t u = add_vertex(g);
             g[u].id = r.id;
             g[u].x = r.x;
             g[u].y = r.y;
         });
-    
-    //property_map<CommunicationGraph, VertexId>::type vid = get(VertexId(), g);
     // use vertex iterator
     // to get all vertices
     // vrange has two iters, points to 1st and last vertices
@@ -85,16 +76,37 @@ int main(int argc, char *argv[]){
             }
         }
     }
+}
+
+void printEdges(const CommunicationGraph & g){
     auto es = boost::edges(g); // actually a pair of edge_iterators
     for (auto eit = es.first; eit != es.second; ++eit) {
         vertex_t u = boost::source(*eit, g);
         vertex_t w =boost::target(*eit, g);
         std::cout <<g[u].id << " <--->  " <<g[w].id << std::endl;
     }
+}
+
+void writeDotFile(const CommunicationGraph & g, string filename){
     //  dot -Tpng graph.dot > graph.png
-    ofstream dotfile("graph.dot");
+    ofstream dotfile(filename.c_str());
     write_graphviz(dotfile, g,
         boost::make_label_writer(boost::get(&Robot::id, g)),
         boost::make_label_writer(boost::get(&Distance::d, g)));
+    
+}
+
+int main(int argc, char *argv[]){
+    vector<Robot> robots{ Robot(2, 5, 6),
+            Robot(1, 0, 1),
+            Robot(4, 10, 8),
+            Robot(3, 4, -4),
+            Robot(5, -3, -4)};
+    int radius = 10;
+    CommunicationGraph g;
+    constructCommunicationGraph(g, robots, radius);
+    printEdges(g);
+    string dot_file = "graph.dot";
+    writeDotFile(g, dot_file);
     return 0;
 }
