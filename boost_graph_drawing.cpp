@@ -1,6 +1,8 @@
+#include <queue>
 #include <vector>
 #include <iostream>
 #include <fstream>
+#include <sstream>
 #include <string>
 #include <utility>
 #include <algorithm>
@@ -47,7 +49,7 @@ typedef graph_traits<CommunicationGraph>::vertex_iterator vertex_iter;
 typedef graph_traits<CommunicationGraph>::edge_iterator edge_iter;
 typedef graph_traits<CommunicationGraph>::vertex_descriptor vertex_t;
 typedef graph_traits<CommunicationGraph>::edge_descriptor edge_t;
-
+typedef graph_traits<CommunicationGraph>::out_edge_iterator ei, ei_end;
 void constructCommunicationGraph(CommunicationGraph & g, vector<Robot> & robots, int radius){
     int n = robots.size();
     for_each(robots.begin(), robots.end(), [&g](Robot &r){
@@ -85,7 +87,7 @@ void printEdges(const CommunicationGraph & g){
         vertex_t w =boost::target(*eit, g);
         std::cout <<g[u].id << " <--->  " <<g[w].id << std::endl;
     }
-}
+ }
 
 void writeDotFile(const CommunicationGraph & g, string filename){
     //  dot -Tpng graph.dot > graph.png
@@ -94,6 +96,55 @@ void writeDotFile(const CommunicationGraph & g, string filename){
         boost::make_label_writer(boost::get(&Robot::id, g)),
         boost::make_label_writer(boost::get(&Distance::d, g)));
     
+}
+
+struct SpanningTreeNode{
+    int id;
+    int steps_from_root;
+    SpanningTreeNode * parent;
+    SpanningTreeNode() {
+        id = -1;
+        steps_from_root = -1;
+        parent = NULL;
+    }
+    SpanningTreeNode(int _i, int _s, SpanningTreeNode * p){
+        id = _i;
+        steps_from_root = _s;
+        parent = p;
+    }
+};
+
+// BFS
+void constructSpanningTree(const CommunicationGraph & g, SpanningTreeNode *& root){
+    if(num_vertices(g)==0) return;
+    // first get the root
+    auto vs = boost::vertices(g);
+    int max_id = - 1;
+    vertex_t vertex_max_id;
+    for(auto vit = vs.first; vit != vs.second; ++vit){
+        vertex_t u = *(vit);
+        if(g[u].id > max_id){
+            max_id = g[u].id;
+            vertex_max_id = u;
+        } 
+    }
+    root = new SpanningTreeNode(max_id, 0, nullptr);
+    queue<vertex_t> Q;
+    set<vertex_t> visited;
+    Q.push(vertex_max_id);
+    visited.insert(vertex_max_id);
+    while(!Q.empty()){
+        vertex_t v = Q.front();
+        Q.pop();
+        for(boost::tie(ei, ei_end) = out_edges(v, g); ei != ei_end; ++ei){
+            vertex_t w = boost::target(*ei, g);
+            if(visited.find(w)==visited.end()){
+                Q.push(w);
+                visited.insert(w);
+            }
+        }
+    }
+
 }
 
 int main(int argc, char *argv[]){
