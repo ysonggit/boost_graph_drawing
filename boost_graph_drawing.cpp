@@ -11,6 +11,7 @@
 #include <boost/graph/graphviz.hpp>
 #include <boost/graph/directed_graph.hpp> 
 #include <boost/graph/undirected_graph.hpp>
+#include <boost/graph/graphviz.hpp>
 
 using namespace boost;
 using namespace std;
@@ -75,7 +76,8 @@ int main(int argc, char *argv[]){
             if(it != jt){
                 vertex_t w = *(jt);
                 int d = dist(g[u].x, g[u].y, g[w].x, g[w].y);
-                if(d<radius){
+                if(d<radius && !boost::edge(u, w, g).second){
+                    //make an edge if it does not exist
                     edge_t e; bool b;
                     boost::tie(e, b) = add_edge(u, w, g);
                     g[e].d = d;
@@ -89,7 +91,10 @@ int main(int argc, char *argv[]){
         vertex_t w =boost::target(*eit, g);
         std::cout <<g[u].id << " <--->  " <<g[w].id << std::endl;
     }
-    // ofstream dotfile("graph.dot");
-    // write_graphviz(dotfile, g);
+    //  dot -Tpng graph.dot > graph.png
+    ofstream dotfile("graph.dot");
+    write_graphviz(dotfile, g,
+        boost::make_label_writer(boost::get(&Robot::id, g)),
+        boost::make_label_writer(boost::get(&Distance::d, g)));
     return 0;
 }
